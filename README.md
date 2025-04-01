@@ -1,9 +1,9 @@
 # LLM4AD
-====
-LLM4ADは，工業製品などの画像に存在する論理的異常を検出する異常検知プログラムを自動生成するシステムです．
 LLM4AD is a system that automatically generates anomaly detection programs to identify logical anomalies in images of industrial products and other objects.
+![概要図](.asset/teaser.png)
 
 ## Description
+
 
 ## Requirement
 
