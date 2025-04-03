@@ -1,7 +1,7 @@
 # LLM4AD
 LLM4AD is a system that automatically generates anomaly detection programs to identify logical anomalies in images of industrial products and other objects.
 
-![概要図](.asset/teaser.png)
+![概要図](assets/teaser.png)
 
 ## Introduction
 LLM4AD is a new approach for anomaly detection.

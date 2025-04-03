@@ -1,24 +1,26 @@
-from PIL import Image, ImageDraw
+from PIL import Image
 import torch
 import numpy as np
 from transformers import AutoModelForVision2Seq, AutoTokenizer, AutoImageProcessor, StoppingCriteria, AutoProcessor, AutoModelForZeroShotObjectDetection
 import argparse
-import cv2
-import subprocess
 import os
 import json
 from generated_code import code_breakfastbox, code_juicebottle, code_pushpins, code_splicingconnectors, code_screwbag
 from datetime import datetime
-import argparse
+
 
 def get_arguments():
     """コマンドライン引数を解析する関数"""
     parser = argparse.ArgumentParser(description="異常検知の設定を受け取る")
 
-    parser.add_argument("--cls", type=int, default=0, help="カテゴリの番号 (例: 0=breakfast_box, 1=juice_bottle, 2=pushpins, 3=splicing_connectors)")
-    parser.add_argument("--subcls", type=int, default=0, help="サブカテゴリ (例: good, logical_anomalies, structural_anomalies)")
-    parser.add_argument("--b", type=int, default=0, help="処理を開始するインデックス")
-    parser.add_argument("--e", type=int, default=0, help="処理を終了するインデックス")
+    parser.add_argument("--image_dir", type=str, default="./data/MVTec_LOCO", help="画像のフォルダパス")
+    parser.add_argument("--cls", type=int, default=0, help="カテゴリの番号 (0:breakfast_box, 1:juice_bottle, 2:pushpins, 3:screw_bag, 4:splicing_connectors)")
+    parser.add_argument("--subcls", type=int, default=0, help="サブカテゴリ (0:good, 1:logical_anomalies, 2:structural_anomalies)")
+    parser.add_argument("--begin_of_image", type=int, default=0, help="処理を開始するインデックス")
+    parser.add_argument("--end_of_image", type=int, default=0, help="処理を終了するインデックス")
+    parser.add_argument("--begin_of_function", type=int, default=1, help="実行を開始する関数")
+    parser.add_argument("--end_of_function", type=int, default=1, help="実行を終了する関数")
+    parser.add_argument("--output_dir", type=str, default="result", help="結果を保存するフォルダパス")
 
     return parser.parse_args()
 
@@ -27,23 +29,17 @@ def main():
     """コードを選択し、画像ごとに execute_command を順番に実行"""
     
     # 使用するコードとカテゴリ
-    code_list = [code_breakfastbox, code_juicebottle, code_pushpins, code_splicingconnectors, code_screwbag]
-    category_list = ['breakfast_box', 'juice_bottle', 'pushpins', 'splicing_connectors', 'screw_bag']
+    code_list = [code_breakfastbox, code_juicebottle, code_pushpins, code_screwbag, code_splicingconnectors]
+    category_list = ['breakfast_box', 'juice_bottle', 'pushpins', 'screw_bag', 'splicing_connectors']
     anomalies_list = ["good", "logical_anomalies", "structural_anomalies"]
     
-    # 選択するデータ
+    # 引数の取得
     args = get_arguments()
-    
-    # 取得した引数の値を変数に格納
+
     num_category = args.cls
     category2 = anomalies_list[args.subcls]
-    start = args.b
-    end = args.e
-    
-    # num_category = 2  # pushpins
-    # category2 = anomalies_list[0]  # "good"
-    # start = 0
-    # end = 1
+    start = args.begin_of_image
+    end = args.end_of_image
     
     # 使用するコードを選択
     code = code_list[num_category]
@@ -54,9 +50,20 @@ def main():
     function_definitions = code.split('def ')  # 関数ごとに分割
     
     # 実行する関数の範囲
-    func_start = 1 
-    func_end = 11
-
+    func_start = args.begin_of_function
+    func_end = args.end_of_function
+    
+    # 画像フォルダの選択
+    image_dir = args.image_dir
+    if not os.path.exists(image_dir):
+        print(f"指定された画像フォルダが存在しません: {image_dir}")
+        
+    output_dir = args.output_dir
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    if not os.path.exists(os.path.join(output_dir, category)):
+        os.makedirs(os.path.join(output_dir, category))
+    
     total_anomaly_score_list = []
     total_anomaly_score_dict = {}
 
@@ -67,7 +74,7 @@ def main():
         print(f"Start processing: {category}:{category2}:{j:03d}.png")
 
         # 画像パスの設定
-        image_path = f"/home/tsurumaki/MVTec_Loco/{category}/test/{category2}/{j:03d}.png"
+        image_path = os.path.join(image_dir, category, "test", category2, f"{j:03d}.png")
         
         # 画像が存在しない場合の処理
         if not os.path.exists(image_path):
@@ -124,7 +131,8 @@ def main():
     print(f"Today's date is {today_date}")
     
     # Save anomaly_score_dict to a JSON file
-    output_path = f"/home/tsurumaki/LLM4AD/anomaly_result/{category}/{today_date}_{category2}_{start}to{end}.json"
+    
+    output_path = f"{output_dir}/{category}/{today_date}_{category2}_{start}to{end}.json"
     with open(output_path, 'w') as json_file:
         json.dump(total_anomaly_score_dict, json_file, indent=4)
     print(f"Anomaly scores saved to {output_path}")
@@ -221,13 +229,6 @@ class EosListStoppingCriteria(StoppingCriteria):
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
         last_ids = input_ids[:,-len(self.eos_sequence):].tolist()
         return self.eos_sequence in last_ids   
-
-
-def create_code(normal_conditions):
-    text_prompt = text_prompt.text_prompt + normal_conditions
-    code = code_generator.generate_code(text_prompt)
-    print(code)
-    return code
 
 
 class ImagePatch:
@@ -527,31 +528,6 @@ def delete_overlaps(patch_list1, patch_list2):
     print(patch_list1, patch_list2)
     return patch_list1, patch_list2
 
-
-def crop_trapezoid(image_path, output_path, vertices):
-    # 画像を読み込む
-    image = cv2.imread(image_path)
-    if image is None:
-        raise FileNotFoundError(f"Image at path {image_path} not found.")
-
-    # 頂点をNumPy配列に変換
-    vertices = np.array(vertices, dtype=np.int32)
-
-    # 台形領域のマスクを作成
-    mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    cv2.fillConvexPoly(mask, vertices, (255, 0, 0))
-
-    # マスクを使って画像をクロップ
-    cropped = cv2.bitwise_and(image, image, mask=mask)
-
-    # 台形領域を切り出すための境界ボックスを取得
-    rect = cv2.boundingRect(vertices)
-    x, y, w, h = rect
-    cropped = cropped[y:y+h, x:x+w]
-
-    # 出力画像を保存
-    cv2.imwrite(output_path, cropped)
-    
     
 def expand2square(pil_img, background_color):
     width, height = pil_img.size
@@ -566,108 +542,6 @@ def expand2square(pil_img, background_color):
         result.paste(pil_img, ((height - width) // 2, 0))
         return result
     
-
-def save_cropped_image(image_path, category, obj_name, box, bash_path):
-    image = Image.open(image_path)
-    image = image.convert("RGB")# Convert png to jpg
-    
-    component = obj_name
-    save_name = obj_name.replace(' ', '_')
-    total_anomaly_score = 0
-    
-    # backgroundの場合
-    if component == 'background':
-        components_list = box
-        
-        # componentsの黒塗り
-        for i in range(len(components_list)):
-            if isinstance(components_list[i], str):# 検出テキストで物体検出して背景画像生成
-                patch_list = detect(image, components_list[i])
-                if category == 'juice_bottle':
-                    new_patch_list =[]
-                    print("this is a juice bottle")
-                    for i in range(len(patch_list)):
-                        box = patch_list[i].box
-                        height = box[3] - box[1]
-                        if height < 800:
-                            new_patch_list.append(patch_list[i])
-                    patch_list = new_patch_list[0:2]
-                    print(patch_list)
-                for patch in patch_list:
-                    image.paste((0, 0, 0), list(map(int, patch.box)))
-                    
-            elif isinstance(components_list[i], list):
-                ImageDraw.Draw(image).polygon(components_list[i], fill="black")
-            elif isinstance(components_list[i], tuple):
-                image.paste((0, 0, 0), components_list[i])
-                
-        output_path = f'/home/tsurumaki/MVTec_Loco_AUTO/{category}_{save_name}/test/test/000.jpg'
-        image.save(output_path, quality = 95)
-        print("save image")
-
-        anomaly_score = excute_simplenet(bash_path)
-        return anomaly_score
-    
-    # boxがintの場合-> 物体検出を行いbboxをboxとする
-    elif isinstance(box, int):
-        num_required = box
-        patch_list = detect(image, component)
-        if len(patch_list) < num_required:
-            return 5
-        if obj_name == 'label with a banana illustration' or obj_name =='label with an orange illustration' or obj_name =='label with a cherry illustration':
-            new_patch_list =[]
-            print("this is a juice bottle")
-            for i in patch_list:
-                height = i.height
-                if height < 800:
-                    new_patch_list.append(i)
-            patch_list = new_patch_list
-            
-        patch_list = patch_list[0:num_required]
-
-        for i in range(len(patch_list)):
-            box = patch_list[i].box
-            output_path = f'/home/tsurumaki/MVTec_Loco_AUTO/{category}_{save_name}/test/test/000.jpg'
-            cropped_image = image.crop(box)
-            cropped_image = expand2square(cropped_image, (0, 0, 0)).resize((300, 300))
-            cropped_image.save(output_path, quality = 95)
-            print("save image")
-
-            anomaly_score = excute_simplenet(bash_path)
-            total_anomaly_score += anomaly_score
-        return total_anomaly_score
-        
-    # boxがtapleの場合-> 指定されたboxで画像をクロップ
-    elif isinstance(box, tuple):
-        output_path = f'/home/tsurumaki/MVTec_Loco_AUTO/{category}_{save_name}/test/test/000.jpg'
-        cropped_image = image.crop(box)
-        cropped_image = expand2square(cropped_image, (0, 0, 0)).resize((300, 300))
-        cropped_image.save(output_path, quality = 95)
-        anomaly_score = excute_simplenet(bash_path)
-        return anomaly_score
-    
-    # boxがlistの場合-> 多角形クロップ
-    elif isinstance(box, list):
-        output_path = f'/home/tsurumaki/MVTec_Loco_AUTO/{category}_{component}/test/test/000.jpg'
-        crop_trapezoid(image_path, output_path, box)
-        # 正方形に成形
-        cropped_image = Image.open(output_path)
-        cropped_image = expand2square(cropped_image, (0, 0, 0)).resize((300, 300))
-        cropped_image.save(output_path, quality = 95)
-        
-        anomaly_score = excute_simplenet(bash_path)
-        return anomaly_score
-    
-    return print("Finish creating datasets")
-
-
-def excute_simplenet(bash_path):
-    cal_output =  subprocess.check_output(bash_path, shell=True)
-    output = cal_output.splitlines()[1].decode()
-    anomaly_score = float(output)
-    print("anomaly_score", anomaly_score)
-    return anomaly_score
-    
     
 def delete_large_box(patch_list):
     new_patch_list = []
@@ -676,181 +550,6 @@ def delete_large_box(patch_list):
         if height < 800:
             new_patch_list.append(p)
     return new_patch_list
-
-
-# SimpleNetモデル選択関数
-def detect_sa(image_path, category, obj_name, box):
-    
-    # モデルの選択
-    if category == "breakfast_box":
-        if obj_name == 'orange':
-            bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/breakfast_box/run_orange.sh'
-            anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-            return anomaly_score
-        elif obj_name == 'peach':
-            bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/breakfast_box/run_peach.sh'
-            anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-            return anomaly_score
-        elif obj_name == 'oatmeal':
-            bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/breakfast_box/run_oatmeal.sh'
-            anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-            return anomaly_score
-        elif obj_name == 'chips':
-            bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/breakfast_box/run_chips.sh'
-            anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-            return anomaly_score
-        elif obj_name == 'background':
-            bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/breakfast_box/run_background.sh'
-            anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-            return anomaly_score
-            
-    elif category == "juice_bottle":
-        if type(obj_name) == tuple:# どのモデルを選択するか
-            obj_name_tuple = obj_name
-            detection_name = ("banana illustration", "orange illustration", "cherry illustration")
-            
-            image = Image.open(image_path)
-            image = image.convert("RGB")# Convert png to jpg
-            
-            image_patch = ImagePatch(image)
-
-            banana_illustration_patches = image_patch.find("banana illustration")
-            banana_illustration_patches = delete_large_box(banana_illustration_patches)
-            if len(banana_illustration_patches) == 0:
-                banana_score = 0
-            else:
-                banana_score = banana_illustration_patches[0].detection_score
-            
-            # orange_illustration_patches = image_patch.find("orange illustration")
-            # orange_illustration_patches = delete_large_box(orange_illustration_patches)
-            # if len(orange_illustration_patches) == 0:
-            #     orange_score = 0
-            # else:
-            #     orange_score = orange_illustration_patches[0].detection_score
-            
-            cherry_illustration_patches = image_patch.find("cherry illustration")
-            cherry_illustration_patches = delete_large_box(cherry_illustration_patches)
-            if len(cherry_illustration_patches) == 0:
-                cherry_score = 0
-            else:
-                cherry_score = cherry_illustration_patches[0].detection_score
-          
-            
-            if banana_score > 0.5:
-                obj_name = 'label with a banana illustration'
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/juice_bottle/run_banana_illustration_label.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
-            elif cherry_score > 0.28:
-                obj_name = 'label with a cherry illustration'
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/juice_bottle/run_cherry_illustration_label.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
-            else:
-                obj_name = 'label with an orange illustration'
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/juice_bottle/run_orange_illustration_label.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
-            
-        elif obj_name == 'text label':
-            bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/juice_bottle/run_text_label.sh'
-            anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-            return anomaly_score
-        
-        if obj_name == 'background':
-            image = Image.open(image_path)
-            image = image.convert("RGB")# Convert png to jpg
-            
-            image_patch = ImagePatch(image)
-
-            banana_illustration_patches = image_patch.find("banana illustration")
-            banana_illustration_patches = delete_large_box(banana_illustration_patches)
-            if len(banana_illustration_patches) == 0:
-                banana_score = 0
-            else:
-                banana_score = banana_illustration_patches[0].detection_score
-            
-            cherry_illustration_patches = image_patch.find("cherry illustration")
-            cherry_illustration_patches = delete_large_box(cherry_illustration_patches)
-            if len(cherry_illustration_patches) == 0:
-                cherry_score = 0
-            else:
-                cherry_score = cherry_illustration_patches[0].detection_score
-          
-            
-            if banana_score > 0.5:
-                print("Use banana model")
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/juice_bottle/run_banana_background.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
-            elif cherry_score > 0.28:
-                print("Use cherry model")
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/juice_bottle/run_cherry_background.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
-            else:
-                print("Use orange model")
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/juice_bottle/run_orange_background.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
-            
-    elif category == "pushpins":
-        if obj_name == 'pushpin':
-            bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/pushpins/run_pushpin.sh'
-            anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-            return anomaly_score
-        elif obj_name == 'background':
-            bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/pushpins/run_pushpins_background2.sh'
-            anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-            return anomaly_score
-    
-    elif category == "splicing_connectors":
-        if obj_name == "cable":
-            image = Image.open(image_path)
-            image = image.convert("RGB")# Convert png to jpg
-            image_patch = ImagePatch(image)
-            
-            # Get terimnal patch
-            terminal_patches = image_patch.find("terminal")
-
-            # Filter terminals by width 500 or less
-            filtered_terminals = [patch for patch in terminal_patches if patch.width <= 500]
-            print(filtered_terminals)
-
-            # Get terimnal_height
-            if len(filtered_terminals) == 2:
-                terminal_height = filtered_terminals[0].height
-            else:
-                return 5
-            
-            # get cable patch
-            cable_patches = image_patch.find("cable")
-        
-            # Filter cables by height 150 or less and width 600 or more
-            filtered_cables = [patch for patch in cable_patches if patch.height <= 150 and patch.width >= 600]
-            print(filtered_cables)
-            
-            if len(filtered_cables) != 1:
-                return 5
-            
-            box = tuple(filtered_cables[0].box)
-            
-            # Classify type of terminal
-            if terminal_height < 250: # yellow cable
-                obj_name = "yellow cable"
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/splicing_connectors/run_yellow_cable.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
-            elif terminal_height > 400: # red cable
-                obj_name = "red cable"
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/splicing_connectors/run_red_cable.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
-            else: # blue cable
-                obj_name = "blue cable"
-                bash_path = 'bash /home/tsurumaki/SimpleNet-main/ACGAD/run_sh/splicing_connectors/run_blue_cable.sh'
-                anomaly_score = save_cropped_image(image_path, category, obj_name, box, bash_path)
-                return anomaly_score
 
 
 def detect(image, obj_name):# list(scoreの高い順にbboxを返す)
