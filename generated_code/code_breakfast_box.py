@@ -95,21 +95,4 @@ def execute_command4(image_path, image):
     
     return formatting_answer(anomaly_score)
 
-
-def execute_command5(image_path, image):
-    category = "breakfast_box"
-    components = {'orange': 2, 'peach': 1, 'oatmeal': [(600, 100), (735, 700), (1490, 700), (1490, 100)], 'chips': (735, 700, 1480, 1140), 'background': ['orange', 'peach', [(600, 100), (735, 700), (1490, 700), (1490, 100)], (735, 700, 1480, 1140)]}
-    
-    total_anomaly_score = 0
-    for component in components.items():
-        component_name = component[0]
-        box = component[1]
-        print(component_name, box)
-        anomaly_score = detect_sa(image_path, category, component_name, box)
-        total_anomaly_score += anomaly_score
-        print(total_anomaly_score)
-    
-    return total_anomaly_score
-```
-
 """

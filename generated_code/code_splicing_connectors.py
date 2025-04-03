@@ -135,18 +135,5 @@ def execute_command6(image_path, image):
     else:
         print("The cable is not red.")
         return formatting_answer(0)
-        
-def execute_command7(image_path, image):
-    category = "splicing_connectors"
-    components = {'cable': 1}
-    
-    total_anomaly_score = 0
-    for component, count in components.items():
-        print(f"Detecting {component} with expected count: {count}")
-        anomaly_score = detect_sa(image_path, category, component, count)
-        total_anomaly_score += anomaly_score
-        print(f"Running total anomaly score: {total_anomaly_score}")
-    
-    return total_anomaly_score
 
 """

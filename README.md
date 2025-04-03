@@ -25,4 +25,4 @@ The user defines the normal conditions of the image (e.g., "2 oranges are presen
 ## Reference
 [1]User Name, '大規模言語モデルを用いたプログラム自動生成による論理的異常の画像検知'
 
-[tcnksm](https://github.com/tcnksm)
+[takah1r0jp](https://github.com/takah1r0jp)

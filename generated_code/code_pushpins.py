@@ -68,19 +68,4 @@ def execute_command3(image_path, image):
     
     return formatting_answer(anomaly_score)
 
-def execute_command4(image_path, image):
-    category = "pushpins"
-    components = {'pushpin': 15, 'background': ['pushpin']}
-    
-    total_anomaly_score = 0
-    for t in components.items():
-        component = t[0]
-        box = t[1]
-        print(component, box)
-        anomaly_score = detect_sa(image_path, category, component, box)
-        total_anomaly_score += anomaly_score
-        print(total_anomaly_score)
-
-    return total_anomaly_score
-```
 """

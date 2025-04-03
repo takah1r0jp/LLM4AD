@@ -17,8 +17,5 @@ Function5:
 Normal_condition6:If the color of the cable is red, the height of one [terminal] with a width of less than 500 is 431-467.
 Function6:
 
-Normal_condition7:Detect SA. Category is "splicing_connectors". Components is {'cable':1}
-Function7:
-
-Create 7 python function.
+Create 6 python function.
 """

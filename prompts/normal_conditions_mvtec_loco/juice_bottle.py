@@ -32,8 +32,5 @@ Function10:
 Normal_condition11:If the [juice] is orange, the [illustration on the label] is an orange.
 Function11:
 
-Normal_condition12:Detect SA. Category is "juice_bottle". Components is {'text label':1, ('label with a banana illustration', 'label with an orange illustration', 'label with a cherry illustration') :1, 'background':['label']}
-Function12:
-
 Create 12 python functions.
 """
