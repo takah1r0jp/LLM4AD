@@ -11,9 +11,21 @@ The user defines the normal conditions of the image (e.g., "2 oranges are presen
 
 
 ## Requirement
+PyTorchのインストール \
+PyTorchの公式サイトで、自分の環境に合ったインストールコマンドを取得できます。
+https://pytorch.org/get-started/locally/ \
 
+一般的な環境では以下のコマンドでOK：
+
+CPU環境
+pip install torch torchvision torchaudio
+
+GPU環境（CUDA対応）
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+※CUDAのバージョン（cu121など）は、nvcc --version で確認できます。
 ## Install
-
+仮想環境を作成し，必要なパッケージをインストールした後，notebookを起動してください．カーネルには作成した仮想環境を選択しましょう．
 ## Usage
 
 ## Demo
