@@ -66,6 +66,7 @@ def main():
     
     total_anomaly_score_list = []
     total_anomaly_score_dict = {}
+    normalized_anomaly_score_dict = {}
 
     for j in range(start, end + 1):
         total_anomaly_score = 0
@@ -119,22 +120,21 @@ def main():
             # print(total_anomaly_score_list)
             total_anomaly_score_dict.setdefault(f"{j:03d}", anomaly_score_list)
             print(total_anomaly_score_dict)
-        
-        with open("/home/tsurumaki/GPT/ACGAD/time.txt", "w") as o:
-            print(f"now image number is {j:03d}", file=o)
-    
-    print(total_anomaly_score_list)
-    print(total_anomaly_score_dict)
-    
+            print("-----------------")
+    # total_anomaly_scoreの正規化
+    normalized_total_anomaly_score = total_anomaly_score / len(anomaly_score_list)
+    normalized_anomaly_score_dict.setdefault(f"{j:03d}", normalized_total_anomaly_score)
+    print("normalized anomaly_score")
+    print(normalized_anomaly_score_dict)
+    print("---------------------")
+
     # Get today's date
     today_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
-    print(f"Today's date is {today_date}")
     
     # Save anomaly_score_dict to a JSON file
-    
     output_path = f"{output_dir}/{category}/{today_date}_{category2}_{start}to{end}.json"
     with open(output_path, 'w') as json_file:
-        json.dump(total_anomaly_score_dict, json_file, indent=4)
+        json.dump(normalized_anomaly_score_dict, json_file, indent=4)
     print(f"Anomaly scores saved to {output_path}")
 
 
