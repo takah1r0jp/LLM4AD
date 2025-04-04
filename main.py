@@ -1,7 +1,14 @@
 from PIL import Image
 import torch
 import numpy as np
-from transformers import AutoModelForVision2Seq, AutoTokenizer, AutoImageProcessor, StoppingCriteria, AutoProcessor, AutoModelForZeroShotObjectDetection
+from transformers import (
+    AutoModelForVision2Seq,
+    AutoTokenizer,
+    AutoImageProcessor,
+    StoppingCriteria,
+    AutoProcessor,
+    AutoModelForZeroShotObjectDetection,
+)
 import argparse
 import os
 import json
@@ -14,8 +21,15 @@ def get_arguments():
     parser = argparse.ArgumentParser(description="異常検知の設定を受け取る")
 
     parser.add_argument("--image_dir", type=str, default="./data/MVTec_LOCO", help="画像のフォルダパス")
-    parser.add_argument("--cls", type=int, default=0, help="カテゴリの番号 (0:breakfast_box, 1:juice_bottle, 2:pushpins, 3:screw_bag, 4:splicing_connectors)")
-    parser.add_argument("--subcls", type=int, default=0, help="サブカテゴリ (0:good, 1:logical_anomalies, 2:structural_anomalies)")
+    parser.add_argument(
+        "--cls",
+        type=int,
+        default=0,
+        help="カテゴリの番号 (0:breakfast_box, 1:juice_bottle, 2:pushpins, 3:screw_bag, 4:splicing_connectors)",
+    )
+    parser.add_argument(
+        "--subcls", type=int, default=0, help="サブカテゴリ (0:good, 1:logical_anomalies, 2:structural_anomalies)"
+    )
     parser.add_argument("--begin_of_image", type=int, default=0, help="処理を開始するインデックス")
     parser.add_argument("--end_of_image", type=int, default=0, help="処理を終了するインデックス")
     parser.add_argument("--begin_of_function", type=int, default=1, help="実行を開始する関数")
@@ -27,12 +41,12 @@ def get_arguments():
 
 def main():
     """コードを選択し、画像ごとに execute_command を順番に実行"""
-    
+
     # 使用するコードとカテゴリ
     code_list = [code_breakfastbox, code_juicebottle, code_pushpins, code_screwbag, code_splicingconnectors]
-    category_list = ['breakfast_box', 'juice_bottle', 'pushpins', 'screw_bag', 'splicing_connectors']
+    category_list = ["breakfast_box", "juice_bottle", "pushpins", "screw_bag", "splicing_connectors"]
     anomalies_list = ["good", "logical_anomalies", "structural_anomalies"]
-    
+
     # 引数の取得
     args = get_arguments()
 
@@ -40,30 +54,30 @@ def main():
     category2 = anomalies_list[args.subcls]
     start = args.begin_of_image
     end = args.end_of_image
-    
+
     # 使用するコードを選択
     code = code_list[num_category]
     category = category_list[num_category]
-    
+
     # コードの整形
-    code = code.replace('```', '')  # 不要なバッククォートを削除
-    function_definitions = code.split('def ')  # 関数ごとに分割
-    
+    code = code.replace("```", "")  # 不要なバッククォートを削除
+    function_definitions = code.split("def ")  # 関数ごとに分割
+
     # 実行する関数の範囲
     func_start = args.begin_of_function
     func_end = args.end_of_function
-    
+
     # 画像フォルダの選択
     image_dir = args.image_dir
     if not os.path.exists(image_dir):
         print(f"指定された画像フォルダが存在しません: {image_dir}")
-        
+
     output_dir = args.output_dir
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     if not os.path.exists(os.path.join(output_dir, category)):
         os.makedirs(os.path.join(output_dir, category))
-    
+
     total_anomaly_score_list = []
     total_anomaly_score_dict = {}
     normalized_anomaly_score_dict = {}
@@ -76,12 +90,12 @@ def main():
 
         # 画像パスの設定
         image_path = os.path.join(image_dir, category, "test", category2, f"{j:03d}.png")
-        
+
         # 画像が存在しない場合の処理
         if not os.path.exists(image_path):
             print(f"画像が見つかりません: {image_path}")
             continue
-        
+
         try:
             image = Image.open(image_path)
             image = image.convert("RGB")  # PNG を JPG 形式に変換
@@ -91,12 +105,12 @@ def main():
 
         for i in range(func_start, func_end + 1):
             func_name = f"execute_command{i}"
-            
+
             # 関数コードを取得して整形
             if i >= len(function_definitions):
                 print(f"関数 execute_command{i} はコード内に存在しません。")
                 continue
-            
+
             final_code = "def " + function_definitions[i]
 
             # 関数を実行し、異常スコアを取得
@@ -105,15 +119,15 @@ def main():
             # anomaly_scoreがintかfloatじゃなければエラー通知
             if not isinstance(anomaly_score, (int, float)):
                 raise TypeError(f"scoreはint型またはfloat型である必要があります。現在の型: {type(anomaly_score).__name__}")
-            
+
             if not isinstance(anomaly_score, int):  # int型でない場合
                 anomaly_score = round(float(anomaly_score), 5)
-            
+
             if anomaly_score is not None:
                 total_anomaly_score += anomaly_score
                 anomaly_score_list.append(anomaly_score)
                 print(f"{func_name} の異常スコア: {anomaly_score}")
-            
+
             print("-----------------")
 
             total_anomaly_score_list.append(total_anomaly_score)
@@ -129,11 +143,11 @@ def main():
     print("---------------------")
 
     # Get today's date
-    today_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
-    
+    today_date = datetime.today().strftime("%Y-%m-%d-%H-%M")
+
     # Save anomaly_score_dict to a JSON file
     output_path = f"{output_dir}/{category}/{today_date}_{category2}_{start}to{end}.json"
-    with open(output_path, 'w') as json_file:
+    with open(output_path, "w") as json_file:
         json.dump(normalized_anomaly_score_dict, json_file, indent=4)
     print(f"Anomaly scores saved to {output_path}")
 
@@ -144,10 +158,10 @@ def execute_function_from_code(code, func_name, image_path, image):
     try:
         # `exec` の影響範囲を限定するため `namespace` を使用
         exec(code, globals(), namespace)
-        
+
         # 実行されたコードの中から `func_name` に対応する関数を取得
         func = namespace.get(func_name)
-        
+
         # 取得したオブジェクトが実際に関数なら実行する
         if callable(func):
             print(f"excute -> {func_name}")
@@ -161,22 +175,22 @@ def execute_function_from_code(code, func_name, image_path, image):
 
 
 def check_object_color(image_path, object_name, color):
-  question = f"Is the color of {object_name} {color}? Answer True or False."
-  answer = vqa(image_path, question).replace(' ', '')
-  print(answer)
-  return answer
+    question = f"Is the color of {object_name} {color}? Answer True or False."
+    answer = vqa(image_path, question).replace(" ", "")
+    print(answer)
+    return answer
 
 
 def verify_a_is_b(image_path, object_a, object_b):
     question = f""" Is the {object_a} a {object_b}? Answer Yes or No"""
-    answer = vqa(image_path, question).replace(' ', '')
+    answer = vqa(image_path, question).replace(" ", "")
     print(answer)
     return answer
 
 
 class ModelLoader:
     _model = None
-    
+
     @classmethod
     def load_model(cls):
         if cls._model is None:
@@ -184,10 +198,12 @@ class ModelLoader:
             print("Loading model...")
             model_name_or_path = "Salesforce/xgen-mm-phi3-mini-instruct-r-v1"
             cls._model = AutoModelForVision2Seq.from_pretrained(model_name_or_path, trust_remote_code=True)
-            cls._tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True, use_fast=False, legacy=False)
+            cls._tokenizer = AutoTokenizer.from_pretrained(
+                model_name_or_path, trust_remote_code=True, use_fast=False, legacy=False
+            )
             cls._image_processor = AutoImageProcessor.from_pretrained(model_name_or_path, trust_remote_code=True)
             cls._tokenizer = cls._model.update_special_tokens(cls._tokenizer)
-            # cls._model = YourModel.load("model_path")  # モデルをロードするコード 
+            # cls._model = YourModel.load("model_path")  # モデルをロードするコード
             print("finished loading")
         else:
             print("Model already loaded.")
@@ -196,20 +212,25 @@ class ModelLoader:
 
 def vqa(img_path, query):
     model, image_processor, tokenizer = ModelLoader.load_model()
-    
-    raw_image = Image.open(img_path).convert('RGB')
-    
+
+    raw_image = Image.open(img_path).convert("RGB")
+
     model = model.cuda()
-    inputs = image_processor([raw_image], return_tensors="pt", image_aspect_ratio='anyres')
+    inputs = image_processor([raw_image], return_tensors="pt", image_aspect_ratio="anyres")
     prompt = apply_prompt_template(query)
     language_inputs = tokenizer([prompt], return_tensors="pt")
     inputs.update(language_inputs)
     inputs = {name: tensor.cuda() for name, tensor in inputs.items()}
-    generated_text = model.generate(**inputs, image_size=[raw_image.size],
-                                    pad_token_id=tokenizer.pad_token_id,
-                                    do_sample=False, max_new_tokens=768, top_p=None, num_beams=1,
-                                    stopping_criteria = [EosListStoppingCriteria()],
-                                    )
+    generated_text = model.generate(
+        **inputs,
+        image_size=[raw_image.size],
+        pad_token_id=tokenizer.pad_token_id,
+        do_sample=False,
+        max_new_tokens=768,
+        top_p=None,
+        num_beams=1,
+        stopping_criteria=[EosListStoppingCriteria()],
+    )
     prediction = tokenizer.decode(generated_text[0], skip_special_tokens=True).split("<|end|>")[0]
     return prediction
 
@@ -217,18 +238,20 @@ def vqa(img_path, query):
 # define the prompt template
 def apply_prompt_template(prompt):
     s = (
-            '<|system|>\nA chat between a curious user and an artificial intelligence assistant. '
-            "The assistant gives helpful, detailed, and polite answers to the user's questions.<|end|>\n"
-            f'<|user|>\n<image>\n{prompt}<|end|>\n<|assistant|>\n'
-        )
-    return s 
+        "<|system|>\nA chat between a curious user and an artificial intelligence assistant. "
+        "The assistant gives helpful, detailed, and polite answers to the user's questions.<|end|>\n"
+        f"<|user|>\n<image>\n{prompt}<|end|>\n<|assistant|>\n"
+    )
+    return s
+
+
 class EosListStoppingCriteria(StoppingCriteria):
-    def __init__(self, eos_sequence = [32007]):
+    def __init__(self, eos_sequence=[32007]):
         self.eos_sequence = eos_sequence
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
-        last_ids = input_ids[:,-len(self.eos_sequence):].tolist()
-        return self.eos_sequence in last_ids   
+        last_ids = input_ids[:, -len(self.eos_sequence) :].tolist()
+        return self.eos_sequence in last_ids
 
 
 class ImagePatch:
@@ -254,8 +277,8 @@ class ImagePatch:
     # Returns True if the current ImagePatch overlaps with another patch and False otherwise
     # compute_depth()->float
     # Returns the median depth of the image patch . The bigger the depth, the further the patch is from the camera.
-    
-    def __init__ ( self , image, left : int = None, lower: int = None, right : int = None, upper: int = None, score = 1.0):
+
+    def __init__(self, image, left: int = None, lower: int = None, right: int = None, upper: int = None, score=1.0):
         # Initializes an ImagePatch object by cropping the image at the given coordinates and stores the coordinates as
         # attributes . If no coordinates are provided , the image is left unmodified, and the coordinates are set to the
         # dimensions of the image.
@@ -269,47 +292,45 @@ class ImagePatch:
         # To be closer with human perception, left , lower, right , upper are with respect to the lower left corner of the squared image.
         # Use left , lower, right , upper for downstream tasks.
 
-        self . original_image = image
-        size_x , size_y = image.size
+        self.original_image = image
+        size_x, size_y = image.size
 
         if left is None and right is None and upper is None and lower is None:
-            self .x1 = 0
-            self .y1 = 0
-            self .x2 = size_x
-            self .y2 = size_y
-        else :
-            self .x1 = left
-            self .y1 = upper
-            self .x2 = right
-            self .y2 = lower
+            self.x1 = 0
+            self.y1 = 0
+            self.x2 = size_x
+            self.y2 = size_y
+        else:
+            self.x1 = left
+            self.y1 = upper
+            self.x2 = right
+            self.y2 = lower
 
         # self .cropped_image = image.crop(( int ( self .x1/1000*self . sz) , int ( self .y1/1000*self . sz) , int ( self .x2/1000*self . sz) , int ( self .y2/1000*self . sz)))
 
-        self .width = self .x2 - self .x1
-        self . height = self .y2 - self .y1
+        self.width = self.x2 - self.x1
+        self.height = self.y2 - self.y1
 
         # all coordinates use the upper left corner as the origin (0,0) .
         # However, human perception uses the lower left corner as the origin .
         # So, need to revert upper/lower for language model
-        self . left = self .x1
-        self . right = self .x2
-        self .upper = self .y1
-        self .lower = self .y2
+        self.left = self.x1
+        self.right = self.x2
+        self.upper = self.y1
+        self.lower = self.y2
 
-        self . horizontal_center = ( self . left + self . right ) / 2
-        self . vertical_center = ( self .lower + self .upper) / 2
+        self.horizontal_center = (self.left + self.right) / 2
+        self.vertical_center = (self.lower + self.upper) / 2
 
-        self . patch_description_string = f"{ self .x1} { self .y1} { self .x2} { self .y2}"
-        
+        self.patch_description_string = f"{self.x1} {self.y1} {self.x2} {self.y2}"
+
         self.detection_score = score
         self.box = [self.x1, self.y1, self.x2, self.y2]
 
+    def __str__(self):
+        return self.patch_description_string + f" score: {self.detection_score}"
 
-    def __str__ ( self ) :
-        return self . patch_description_string + f" score: {self.detection_score}"
-
-
-    def find(self , object_name: str ) :
+    def find(self, object_name: str):
         # Returns a list of ImagePatch objects matching object_name contained in the crop if any are found.
         # The object_name should be as simple as example, including only nouns
         # Otherwise, returns an empty list .
@@ -331,14 +352,13 @@ class ImagePatch:
         # >>> image_patch = ImagePatch(image)
         # >>> kid_patches = image_patch. find ("kid")
         # >>> return kid_patches
-        print (f"Calling find function . Detect {object_name}.")
-        # return a dict of patches 
+        print(f"Calling find function . Detect {object_name}.")
+        # return a dict of patches
         det_patches_dict = detect(self.original_image, object_name)
         # print (f"Detection result : {' and '. join ([ str (d) + ' ' + object_name for d in det_patches ])}")
         return det_patches_dict
 
-
-    def expand_patch_with_surrounding( self ) :
+    def expand_patch_with_surrounding(self):
         # Expand the image patch to include the surroundings. Now done by keeping the center of the patch
         # and returns a patch with double width and height
 
@@ -365,21 +385,20 @@ class ImagePatch:
 
         # >>> return formatting_answer( str (num_kids_not_under_umbrella))
 
-        new_left = max(self . left - self .width / 2, 0)
-        new_right = min( self . right + self .width / 2, 999)
-        new_lower = max(self.lower - self . height / 2,0)
-        new_upper = min(self .upper + self . height / 2, 999)
+        new_left = max(self.left - self.width / 2, 0)
+        new_right = min(self.right + self.width / 2, 999)
+        new_lower = max(self.lower - self.height / 2, 0)
+        new_upper = min(self.upper + self.height / 2, 999)
 
-        return ImagePatch( self . original_image , new_left , new_lower, new_right, new_upper)
+        return ImagePatch(self.original_image, new_left, new_lower, new_right, new_upper)
 
-
-    def overlaps ( self , patch) -> bool:
+    def overlaps(self, patch) -> bool:
         # check if another image patch overlaps with this image patch
         # if patch overlaps with current patch , return True. Otherwise return False
 
-        if patch . right < self . left or self . right < patch . left :
+        if patch.right < self.left or self.right < patch.left:
             return False
-        if patch .lower < self .upper or self .lower < patch .upper:
+        if patch.lower < self.upper or self.lower < patch.upper:
             return False
         return True
 
@@ -389,44 +408,45 @@ def dist(patch_a, patch_b):
     ya = patch_a.vertical_center
     xb = patch_b.horizontal_center
     yb = patch_b.vertical_center
-    
-    d = ((xa - xb)**2 + (ya - yb)**2)**(1/2)
+
+    d = ((xa - xb) ** 2 + (ya - yb) ** 2) ** (1 / 2)
     return d
 
-def formatting_answer(answer) -> str :
+
+def formatting_answer(answer) -> str:
     # Formatting the answer into a string that follows the task 's requirement
     # For example, it changes bool value to "yes" or "no", and clean up long answer into short ones.
     # This function should be used at the end of each program
 
     final_answer = ""
-    if isinstance(answer, str ) :
-        final_answer = answer. strip ()
+    if isinstance(answer, str):
+        final_answer = answer.strip()
 
-    elif isinstance(answer, bool) :
+    elif isinstance(answer, bool):
         final_answer = "yes" if answer else "no"
 
-    elif isinstance(answer, list ) :
-        final_answer = " , " . join ([ str (x) for x in answer])
+    elif isinstance(answer, list):
+        final_answer = " , ".join([str(x) for x in answer])
 
     elif isinstance(answer, ImagePatch):
         final_answer = answer.image_caption()
-    
+
     elif isinstance(answer, int or float):
         final_answer = answer
 
-    else :
-        final_answer = str (answer)
-    print (f"Program output: {final_answer }")
+    else:
+        final_answer = str(answer)
+    print(f"Program output: {final_answer}")
     return final_answer
 
 
 def get_image_ratio(image):
     size = image.size
-    if size[0] > size[1]:# width > height
+    if size[0] > size[1]:  # width > height
         x_ratio = 1
-        y_ratio = int(size[0])/int(size[1])
-    else:# width < height
-        x_ratio = int(size[1])/int(size[0])
+        y_ratio = int(size[0]) / int(size[1])
+    else:  # width < height
+        x_ratio = int(size[1]) / int(size[0])
         y_ratio = 1
     return x_ratio, y_ratio
 
@@ -438,12 +458,12 @@ def get_list_bbox_score(boxes, scores, labels, x_ratio, y_ratio):
 
     for box, score, label in zip(boxes, scores, labels):
         box = [round(i, 2) for i in box.tolist()]
-        box[0],box[2] = round(box[0]*x_ratio, 3), round(box[2]*x_ratio, 3)
-        box[1],box[3] = round(box[1]*y_ratio, 3), round(box[3]*y_ratio, 3)
+        box[0], box[2] = round(box[0] * x_ratio, 3), round(box[2] * x_ratio, 3)
+        box[1], box[3] = round(box[1] * y_ratio, 3), round(box[3] * y_ratio, 3)
         bboxes_list.append(box)
         scores_list.append(round(score.item(), 3))
         labels_list.append(label)
-        
+
     return bboxes_list, scores_list, labels_list
 
 
@@ -453,7 +473,7 @@ def nms(boxes, scores, labels, nms_thresh):
     boxes = np.array(boxes)
     scores = np.array(scores)
     labels = np.array(labels)
-    
+
     """
     boxes: np.array([[x1, y1, x2, y2],...])
     """
@@ -468,7 +488,7 @@ def nms(boxes, scores, labels, nms_thresh):
     idx = np.argsort(scores, axis=0)
 
     while len(idx) > 0:
-        last = len(idx)-1
+        last = len(idx) - 1
         i = idx[last]  # index of current largest val
         keep.append(i)
         xx1 = np.maximum(x1[i], x1[idx[:last]])
@@ -481,9 +501,8 @@ def nms(boxes, scores, labels, nms_thresh):
 
         inter = w * h
         iou = inter / (area[idx[:last]] + area[i] - inter)
-        idx = np.delete(idx, np.concatenate(
-            ([last], np.where(iou > nms_thresh)[0])))
-        
+        idx = np.delete(idx, np.concatenate(([last], np.where(iou > nms_thresh)[0])))
+
     boxes_list = boxes[keep].tolist()
     scores_list = scores[keep].tolist()
     labels_list = labels[keep].tolist()
@@ -505,30 +524,29 @@ def cal_iou(a, b):
     aby_mx = min(ay_mx, by_mx)
     w = max(0, abx_mx - abx_mn + 1)
     h = max(0, aby_mx - aby_mn + 1)
-    intersect = w*h
+    intersect = w * h
 
     iou = intersect / (a_area + b_area - intersect)
     return iou
 
 
 def delete_overlaps(patch_list1, patch_list2):
-    
     for p1 in patch_list1:
         for p2 in patch_list2:
             iou = cal_iou(p1.box, p2.box)
             print("iou", iou)
-            
+
             if iou > 0.5:
                 print("Overlap!")
                 if p1.detection_score > p2.detection_score:
                     patch_list2.remove(p2)
                 else:
                     patch_list1.remove(p1)
-    
+
     print(patch_list1, patch_list2)
     return patch_list1, patch_list2
 
-    
+
 def expand2square(pil_img, background_color):
     width, height = pil_img.size
     if width == height:
@@ -541,8 +559,8 @@ def expand2square(pil_img, background_color):
         result = Image.new(pil_img.mode, (height, height), background_color)
         result.paste(pil_img, ((height - width) // 2, 0))
         return result
-    
-    
+
+
 def delete_large_box(patch_list):
     new_patch_list = []
     for p in patch_list:
@@ -552,34 +570,30 @@ def delete_large_box(patch_list):
     return new_patch_list
 
 
-def detect(image, obj_name):# list(scoreの高い順にbboxを返す)
+def detect(image, obj_name):  # list(scoreの高い順にbboxを返す)
     # load model
     model_id = "IDEA-Research/grounding-dino-base"
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    
+
     processor = AutoProcessor.from_pretrained(model_id)
     model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(device)
-    
+
     # orange. peach. のような複数のオブジェクト名を入力とする
-    if not obj_name.endswith('.'):
-        obj_name += '.'
-    print('obj_name', obj_name)
-    
+    if not obj_name.endswith("."):
+        obj_name += "."
+    print("obj_name", obj_name)
+
     inputs = processor(images=image, text=obj_name, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model(**inputs)
-    
+
     # thresholdの選択
     box_threshold = 0.2
     if obj_name == "pushpin.":
         box_threshold = 0.3
-    
+
     results = processor.post_process_grounded_object_detection(
-    outputs,
-    inputs.input_ids,
-    box_threshold = box_threshold,
-    text_threshold=0.3,
-    target_sizes=[image.size[::-1]]
+        outputs, inputs.input_ids, box_threshold=box_threshold, text_threshold=0.3, target_sizes=[image.size[::-1]]
     )
 
     # 自動でリストから辞書に変換
@@ -588,11 +602,11 @@ def detect(image, obj_name):# list(scoreの高い順にbboxを返す)
         print(results)
     else:
         raise ValueError("Results should be a list with one element.")
-    
+
     boxes_list = []
     scores_list = []
     labels_list = []
-    
+
     for score, label, box in zip(results["scores"], results["labels"], results["boxes"]):
         box = [round(i, 1) for i in box.tolist()]
         x0, y0, x1, y1 = (int(coord) for coord in box)
@@ -601,21 +615,21 @@ def detect(image, obj_name):# list(scoreの高い順にbboxを返す)
         labels_list.append(label)
 
     if boxes_list == []:
-        return([])
-    
+        return []
+
     # nmsを実行
     if obj_name == "terminal.":
         boxes_list, scores_list, labels_list
     else:
         boxes_list, scores_list, labels_list = nms(boxes_list, scores_list, labels_list, 0.2)
     print(boxes_list, scores_list, labels_list)
-    
-        # obj_nameに含まれる要素を.で区切りリストに変換し，空白を削除
+
+    # obj_nameに含まれる要素を.で区切りリストに変換し，空白を削除
     # obj_name = "oatmeal. banana chips. almonds"
-    obj_name_list = obj_name.replace(" ","").split(".")
+    obj_name_list = obj_name.replace(" ", "").split(".")
     obj_name_list = [name for name in obj_name_list if name != ""]
     # obj_name_list = ["oatmeal", "bananachips", "almonds"]
-    
+
     # もしobj_name1つの場合，patch_listを返す
     if len(obj_name_list) == 1:
         patch_list = []
@@ -627,21 +641,21 @@ def detect(image, obj_name):# list(scoreの高い順にbboxを返す)
             upper = int(box[1])
             patch_list.append(ImagePatch(cropped_image, left, lower, right, upper, score))
         return patch_list
-    
+
     else:
         # keyが物体名，valueがpatchを含むリストの辞書を作成
         patch_dict = {label: [] for label in obj_name_list}
         # patch_dict = {"oatmeal": [], "bananachips": [], "almonds": []}
-        
+
         # labels_list =  ['oatmeal', 'banana chips almonds']
         for box, score, label in zip(boxes_list, scores_list, labels_list):
             # labelが""の場合，スキップ
             if label == "":
                 continue
             # label = 'banana chips almonds'
-            label = label.replace(" ","")#  labelの空白を削除
+            label = label.replace(" ", "")  #  labelの空白を削除
             # label = 'bananachipsalmonds'
-            
+
             # patch_dictのkeyに含まれる物体名がlabelに含まれる場合，patch_dict[label]に追加
             for obj_name in obj_name_list:
                 print("obj_name", obj_name)
@@ -657,10 +671,10 @@ def detect(image, obj_name):# list(scoreの高い順にbboxを返す)
 
         return patch_dict
 
-    
+
 if __name__ == "__main__":
     main()
-    
+
     # 1. Select start number of image and end number of image, category
     # 2. Select to generate code or to use generated code
     # 3. Select to excute function number

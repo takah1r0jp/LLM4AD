@@ -12,7 +12,5 @@ Normal_condition4:The [almonds] are on the lower right side of the image and the
 Consider the first box of each element.
 Function4:
 
-Create Python function.
-
+Create 4 Python function.
 """
-
