@@ -1,5 +1,7 @@
 # LLM4AD: Logical Anomaly Detection using Large Language Models
 
+![概要図](assets/teaser.png)
+
 This repository contains the implementation of a novel approach for logical anomaly detection in images using Large Language Models (LLMs).
 
 ## Overview
@@ -19,8 +21,6 @@ Traditional anomaly detection approaches often rely on learning from a large num
 
 ## Results
 ![実験結果](assets/result.png)
-
-![概要図](assets/teaser.png)
 
 ## Installation
 
