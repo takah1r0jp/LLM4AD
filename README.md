@@ -77,7 +77,7 @@ The demo notebooks demonstrate how to:
 
 ## License
 
-[MIT](https://github.com/tcnksm/tool/blob/master/LICENCE)
+This project is licensed under the MIT License.
 
 ## Reference
 
