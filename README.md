@@ -21,7 +21,7 @@ Traditional anomaly detection approaches often rely on learning from a large num
 
 ## System overview
 
-![全体像](assets/overall.jpg)
+<img src="assets/overall.jpg" width="400">
 
 ## Generated code
 
