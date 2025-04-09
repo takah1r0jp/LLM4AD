@@ -20,12 +20,22 @@ Logical anomaly detection is a challenging task in computer vision where the goa
 Traditional anomaly detection approaches often rely on learning from a large number of normal samples. However, for logical anomalies, it is often more practical and intuitive to specify normal conditions in natural language rather than collecting numerous normal samples. Our approach bridges this gap by using LLMs to convert natural language descriptions into executable computer vision programs.
 
 ## System overview
+- The user defines the "conditions of normality" for the target object from multiple perspectives (e.g., quantity and arrangement of image components).
+- This text is inserted into a pre-defined prompt template.
+- The prompt is sent to a large language model (LLM).
+- The LLM generates a Python program to check whether each condition is met in a given input image.
+- The program is executed on the actual image to detect any abnormalities.
 
 <p align="center">
   <img src="assets/overall.jpg" width="650">
 </p>
 
-## Generated code
+## LLM-generated code example
+- The function was generated for the  image in the top right, given the normality condition: “The oatmeal should be above the almond.”
+- The function first calls an object detection module using the find() method to detect oatmeal in the input image.
+- It then calculates the center of the detected bounding box.
+- By comparing it to the center of the image, the function determines whether the oatmeal is on the right side.
+- If the condition is met, it returns an anomaly score of 0; otherwise, it returns 1.
 
 ![Generated_code](assets/generated_code_sample.png)
 
