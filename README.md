@@ -19,6 +19,10 @@ Logical anomaly detection is a challenging task in computer vision where the goa
 
 Traditional anomaly detection approaches often rely on learning from a large number of normal samples. However, for logical anomalies, it is often more practical and intuitive to specify normal conditions in natural language rather than collecting numerous normal samples. Our approach bridges this gap by using LLMs to convert natural language descriptions into executable computer vision programs.
 
+## System overview
+
+![全体像](assets/overall.jpg)
+
 ## Generated code
 
 ![Generated_code](assets/generated_code_sample.png)
