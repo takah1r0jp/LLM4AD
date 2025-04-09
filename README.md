@@ -21,7 +21,7 @@ Traditional anomaly detection approaches often rely on learning from a large num
 
 ## Generated code
 
-![Generated_code](assets/generated_program_breakfastbox.pdf)
+![Generated_code](assets/generated_code_sample.png)
 
 ## Results
 ![実験結果](assets/result.png)

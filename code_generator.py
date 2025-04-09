@@ -37,7 +37,7 @@ def generate_code(normal_conditions_path):
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-
+    
     s = response.json()["choices"][0]["message"]["content"]
 
     # normal_conditionsのファイル名を取得（拡張子なし）
