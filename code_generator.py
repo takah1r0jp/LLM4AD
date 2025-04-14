@@ -26,7 +26,15 @@ def generate_code(normal_conditions_path):
 
     text_prompt = template_prompt + normal_conditions
     # OpenAI API Key
-    api_key = os.environ["OPENAI_API_KEY"]
+    # APIキーを取得する方法（以下のいずれかを選択）
+    
+    # 方法1: 環境変数から取得（存在しない場合はユーザー入力を求める）
+    try:
+        api_key = os.environ["OPENAI_API_KEY"]
+    except KeyError:
+        api_key = input("OpenAI APIキーを入力してください: ")
+        # 一時的に環境変数に設定（現在のプロセスのみ有効）
+        os.environ["OPENAI_API_KEY"] = api_key
 
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
@@ -59,7 +67,7 @@ def generate_code(normal_conditions_path):
         print(s, file=o)
         print('"""', file=o)
 
-    print(f"Generated code saved to: {output_path}")
+    # print(f"Generated code saved to: {output_path}")
     return s
 
 
@@ -73,9 +81,17 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Initialize the OpenAI API key from environment variables
-    api_key = os.environ["OPENAI_API_KEY"]
-    print("Using OpenAI API Key:", api_key)
+    # Initialize the OpenAI API key
+    try:
+        api_key = os.environ["OPENAI_API_KEY"]
+    except KeyError:
+        api_key = input("OpenAI APIキーを入力してください: ")
+        # 一時的に環境変数に設定（現在のプロセスのみ有効）
+        os.environ["OPENAI_API_KEY"] = api_key
+    
+    # APIキーの最初の数文字だけを表示（セキュリティのため）
+    masked_key = api_key[:4] + "*" * (len(api_key) - 8) + api_key[-4:] if len(api_key) > 8 else "****"
+    print(f"Using OpenAI API Key: {masked_key}")
 
     # Call the generate_code function with the specified normal conditions path
     generated_code = generate_code(args.normal_conditions_path)
