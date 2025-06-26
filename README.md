@@ -26,10 +26,6 @@ Traditional anomaly detection approaches often rely on learning from a large num
 - The LLM generates a Python program to check whether each condition is met in a given input image.
 - The program is executed on the actual image to detect any abnormalities.
 
-<p align="center">
-  <img src="assets/overall.jpg" width="650">
-</p>
-
 ## LLM-generated code example
 - The function was generated for the  image in the top right, given the normality condition: “The oatmeal should be above the almond.”
 - The function first calls an object detection module using the find() method to detect oatmeal in the input image.
