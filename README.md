@@ -1,4 +1,4 @@
-# LLM4AD: Logical Anomaly Detection using Large Language Models
+# 大規模言語モデルを用いたプログラム自動生成による論理的異常の画像検知
 
 ![概要図](assets/MIRU25_architecture_final.png)
 
